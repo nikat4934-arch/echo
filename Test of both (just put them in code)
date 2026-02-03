@@ -1,0 +1,64 @@
+import socket
+
+HOST = "10.90.14.48"
+PORT = 10236
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect((HOST, PORT))
+
+print("Подключено к серверу")
+
+while True:
+    msg = input(">>> ")
+
+    s.sendall(msg.encode())
+
+    if msg == "exit":
+        break
+
+    data = s.recv(1024)
+    print("Сервер:", data.decode())
+
+s.close()
+
+
+import socket
+import threading
+
+HOST = "0.0.0.0"
+PORT = 10236
+
+
+def client_handler(conn, addr):
+    print(f"Подключился: {addr}")
+
+    while True:
+        data = conn.recv(1024)
+        if not data:
+            break
+
+        msg = data.decode()
+
+        if msg == "exit":
+            print(f"Отключился: {addr}")
+            break
+
+        print(f"{addr}: {msg}")
+        conn.sendall(msg.encode())
+
+    conn.close()
+
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((HOST, PORT))
+s.listen()
+
+print("Сервер запущен")
+
+while True:
+    conn, addr = s.accept()
+    threading.Thread(
+        target=client_handler,
+        args=(conn, addr),
+        daemon=True
+    ).start()
