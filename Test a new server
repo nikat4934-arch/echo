@@ -1,0 +1,65 @@
+
+
+import socket
+import threading
+
+HOST = "0.0.0.0"
+PORT = 10236
+MAX_CLIENTS = 3
+
+clients = []
+lock = threading.Lock()
+
+
+def client_handler(conn, addr):
+    print(f"Подключился: {addr}")
+
+    while True:
+        try:
+            data = conn.recv(1024)
+            if not data:
+                break
+
+            msg = data.decode()
+
+            if msg == "exit":
+                print(f"Отключился: {addr}")
+                break
+
+            print(f"{addr}: {msg}")
+            conn.sendall(msg.encode())
+
+        except:
+            break
+
+    conn.close()
+
+    # Удаляем клиента из списка
+    with lock:
+        clients.remove(conn)
+
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((HOST, PORT))
+s.listen()
+
+print("Сервер запущен")
+
+while True:
+    conn, addr = s.accept()
+
+    with lock:
+        if len(clients) >= MAX_CLIENTS:
+            print(f"Отказано в подключении: {addr}")
+            conn.sendall("Сервер переполнен (макс. 3 клиента)".encode())
+            conn.close()
+            continue
+
+        clients.append(conn)
+
+    threading.Thread(
+        target=client_handler,
+        args=(conn, addr),
+        daemon=True
+    ).start()
+
