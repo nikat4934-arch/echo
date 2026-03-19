@@ -1,0 +1,56 @@
+# server 
+import socket
+import threading
+
+def handle_client(conn, addr):
+    print(f"[NEW CONNECTION] {addr} connected.")
+    connected = True
+    while connected:
+        try:
+            msg = conn.recv(1024).decode('utf-8')
+            if not msg: break
+            if msg.lower() == 'exit':
+                connected = False
+            
+            print(f"[{addr}] {msg}")
+            conn.send(f"Echo: {msg}".encode('utf-8'))
+        except ConnectionResetError:
+            break
+    conn.close()
+    print(f"[DISCONNECTED] {addr} closed.")
+
+def start():
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Используем 0.0.0.0 для приема подключений со всех интерфейсов
+    server.bind(('0.0.0.0', 5050)) 
+    server.listen()
+    print("[LISTENING] Server is listening...")
+    while True:
+        conn, addr = server.accept()
+        thread = threading.Thread(target=handle_client, args=(conn, addr))
+        thread.start()
+
+start()
+
+# client 
+
+import socket
+
+# Для работы по доменному имени: 'example.com' или IP: '192.168.x.x'
+SERVER = '127.0.0.1' 
+PORT = 5050
+
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((SERVER, PORT))
+
+def send(msg):
+    client.send(msg.encode('utf-8'))
+    print(client.recv(1024).decode('utf-8'))
+
+while True:
+    message = input("Message (exit to close): ")
+    send(message)
+    if message.lower() == 'exit':
+        break
+
+client.close()
