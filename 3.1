@@ -1,0 +1,80 @@
+# client
+import socket
+
+HOST = 'localhost'  # доменное имя вместо IP
+PORT = 10236
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.connect((HOST, PORT))
+
+    while True:
+        message = input("Введите сообщение: ")
+        s.sendall(message.encode('utf-8'))
+
+        if message.lower() == "exit":
+            print("Отключение от сервера")
+            break
+
+        data = s.recv(1024)
+        print(f"Ответ сервера: {data.decode('utf-8')}")
+
+
+# server
+import socket
+import threading
+
+HOST = '0.0.0.0'
+PORT = 10236
+MAX_CLIENTS = 2
+
+clients_count = 0
+lock = threading.Lock()
+
+def handle_client(conn, addr):
+    global clients_count
+
+    print(f'Подключено: {addr}')
+
+    with conn:
+        while True:
+            data = conn.recv(1024)
+
+            if not data:
+                break
+
+            message = data.decode('utf-8')
+            print(f"{addr}: {message}")
+
+            if message.lower() == "exit":
+                print(f"{addr} отправил exit")
+                break
+
+            conn.sendall(data)
+
+    # Счётчик клиентов
+    with lock:
+        clients_count -= 1
+
+    print(f"{addr} отключился")
+
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.bind((HOST, PORT))
+    s.listen()
+
+    print(f"Сервер запущен на {HOST}:{PORT}")
+
+    while True:
+        conn, addr = s.accept()
+
+        with lock:
+            if clients_count >= MAX_CLIENTS:
+                print(f"Отказ {addr}: достигнут лимит")
+                conn.close()
+                continue
+
+            clients_count += 1
+
+        # Отдельный поток
+        thread = threading.Thread(target=handle_client, args=(conn, addr))
+        thread.start()
